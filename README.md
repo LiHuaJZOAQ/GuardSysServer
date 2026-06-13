@@ -35,9 +35,7 @@
    - Root Directory: `web`
    - Build Command: `npm run build`
    - Output Directory: `dist`
-4. 添加环境变量:
-   - `VITE_SERVER_URL`: 你的 Railway 域名（如 https://xxx.railway.app）
-5. 部署完成后获取前端域名
+ 4. 部署完成后获取前端域名
 
 ### 2b. 部署前端 (GitHub Pages，Vercel 替代方案)
 
@@ -45,9 +43,6 @@
 2. 在 GitHub 仓库 Settings → Pages → Source 选择 **GitHub Actions**
 3. 推送代码后，`.github/workflows/deploy-pages.yml` 会自动构建并部署
 4. 部署完成后前端地址为 `https://<用户名>.github.io/GuardSysServer/`
-5. 在 GitHub 仓库 Settings → Secrets and variables → Actions 添加变量:
-   - `VITE_SERVER_URL`: 你的 Railway 域名（如 `https://xxx.railway.app`）
-
 > ⚠️ GitHub Pages 部署的是静态文件，不支持服务端路由，已改用 Hash 模式 (`/#/login`、`/#/`)，刷新不会 404。
 
 ### 3. 配置南向设备
@@ -92,5 +87,5 @@ npm run dev
 ## 故障排查
 
 1. 设备无法连接: 检查服务器域名是否正确，TCP端口是否开放
-2. 前端无法连接: 检查 VITE_SERVER_URL 环境变量是否正确
+2. 前端无法连接: 确认后端已正确启动，前端使用相对路径 (`/api/...`) 无需额外配置；如前后端分离部署请配置 Vite 代理
 3. 推送失败: 检查 SCKEY 是否正确配置

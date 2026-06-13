@@ -187,9 +187,7 @@ export default {
     },
 
     initSocket() {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-      
-      this.socket = io(serverUrl, {
+      this.socket = io({
         transports: ['websocket', 'polling']
       })
 
@@ -221,9 +219,8 @@ export default {
     },
 
     async fetchDevices() {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
       try {
-        const res = await fetch(`${serverUrl}/api/devices`, {
+        const res = await fetch('/api/devices', {
           headers: this.getAuthHeader()
         })
         
@@ -235,7 +232,7 @@ export default {
         this.devices = await res.json()
 
         if (this.devices.length > 0) {
-          const latestRes = await fetch(`${serverUrl}/api/devices/${this.devices[0].id}/latest`, {
+          const latestRes = await fetch(`/api/devices/${this.devices[0].id}/latest`, {
             headers: this.getAuthHeader()
           })
           const latest = await latestRes.json()
@@ -258,9 +255,8 @@ export default {
 
     async fetchHistory() {
       if (!this.devices.length) return
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
       try {
-        const res = await fetch(`${serverUrl}/api/devices/${this.devices[0].id}/history?hours=24`, {
+        const res = await fetch(`/api/devices/${this.devices[0].id}/history?hours=24`, {
           headers: this.getAuthHeader()
         })
         this.historyData = await res.json()
@@ -277,9 +273,8 @@ export default {
         return
       }
 
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
       try {
-        const res = await fetch(`${serverUrl}/api/devices/${this.selectedDevice}/control`, {
+        const res = await fetch(`/api/devices/${this.selectedDevice}/control`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -307,9 +302,8 @@ export default {
         return
       }
 
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
       try {
-        const res = await fetch(`${serverUrl}/api/devices/${this.selectedDevice}/control`, {
+        const res = await fetch(`/api/devices/${this.selectedDevice}/control`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

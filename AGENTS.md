@@ -41,7 +41,7 @@ No lint, typecheck, or formatter scripts exist. No CI.
 
 - **Backend** → Railway (see `server/railway.json`, heroku-buildpacks/node)
 - **Frontend** → Vercel (see `web/vercel.json`, root dir = `web/`) or **GitHub Pages** (via `.github/workflows/deploy-pages.yml`)
-- `VITE_SERVER_URL` env var required for web to reach backend (defaults to `http://localhost:3000`)
+- Frontend uses relative URLs (`/api/...`, `io()`) — works when served from same origin; Vite proxy (`vite.config.js`) forwards `/api` and `/socket.io` to `localhost:3000` in dev
 - GitHub Pages uses Hash history mode (`createWebHashHistory`), not `createWebHistory` — set in `web/src/main.js`
 - In production, server also serves `web/dist/` as static fallback at `/*`
 - Railway auto-builds the frontend: `server/package.json` has `postinstall: "cd ../web && npm install && npm run build"`

@@ -61,10 +61,8 @@ export default {
       this.error = ''
       this.loading = true
 
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-
       try {
-        const res = await fetch(`${serverUrl}/api/auth/login`, {
+        const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -96,10 +94,8 @@ export default {
       this.success = ''
       this.loading = true
 
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-
       try {
-        const res = await fetch(`${serverUrl}/api/auth/register`, {
+        const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -126,10 +122,8 @@ export default {
     },
 
     async verifyToken(token) {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-
       try {
-        const res = await fetch(`${serverUrl}/api/auth/verify`, {
+        const res = await fetch('/api/auth/verify', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
 
