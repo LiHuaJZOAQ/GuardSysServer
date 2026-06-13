@@ -1,0 +1,15 @@
+{
+  "name": "guardsys-server",
+  "version": 1,
+  "build": {
+    "builder": "heroku-buildpacks/node"
+  },
+  "config": {
+    "TCP_PORT": {
+      "value": "3001"
+    }
+  },
+  "processes": {
+    "web": "node index.js"
+  }
+}
