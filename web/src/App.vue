@@ -162,7 +162,6 @@ export default {
     }
   },
   mounted() {
-    this.checkAuth()
     this.initSocket()
     this.fetchDevices()
     this.initChart()

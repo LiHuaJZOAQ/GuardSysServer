@@ -11,6 +11,13 @@ const router = createRouter({
   ]
 })
 
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token')
+  if (to.path !== '/login' && !token) {
+    return '/login'
+  }
+})
+
 const app = createApp(App)
 app.use(router)
 app.mount('#app')
