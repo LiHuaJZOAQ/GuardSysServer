@@ -1,0 +1,11 @@
+{
+  "name": "guardsys",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "cd server && npm install"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
