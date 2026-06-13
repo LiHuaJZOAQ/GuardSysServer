@@ -1,8 +1,8 @@
 const net = require('net');
 const http = require('http');
 
-const SERVER_URL = 'http://localhost:3000';
-const TCP_HOST = 'localhost';
+const SERVER_URL = 'http://127.0.0.1:3000';
+const TCP_HOST = '127.0.0.1';
 const TCP_PORT = 3001;
 
 function httpPost(path, body, token) {
