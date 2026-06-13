@@ -9,7 +9,7 @@
                                     Socket.io
                                           |
                                           v
-                                    Vue3 前端  -->  Vercel
+                                     Vue3 前端  -->  Vercel / GitHub Pages
 ```
 
 ## 部署步骤
@@ -25,6 +25,8 @@
    - `TCP_PORT`: 3001
 5. 部署完成后，获取 Railway 分配的域名
 
+> Railway 部署时会自动安装依赖并构建前端（`postinstall` 触发 `web/` 的 `npm install && npm run build`），访问 Railway 域名即可同时使用 API 和前端页面，**无需单独部署前端**。
+
 ### 2. 部署前端 (Vercel)
 
 1. 注册 Vercel 账号: https://vercel.com （使用 GitHub 登录）
@@ -36,6 +38,17 @@
 4. 添加环境变量:
    - `VITE_SERVER_URL`: 你的 Railway 域名（如 https://xxx.railway.app）
 5. 部署完成后获取前端域名
+
+### 2b. 部署前端 (GitHub Pages，Vercel 替代方案)
+
+1. 确保仓库已推送至 GitHub
+2. 在 GitHub 仓库 Settings → Pages → Source 选择 **GitHub Actions**
+3. 推送代码后，`.github/workflows/deploy-pages.yml` 会自动构建并部署
+4. 部署完成后前端地址为 `https://<用户名>.github.io/GuardSysServer/`
+5. 在 GitHub 仓库 Settings → Secrets and variables → Actions 添加变量:
+   - `VITE_SERVER_URL`: 你的 Railway 域名（如 `https://xxx.railway.app`）
+
+> ⚠️ GitHub Pages 部署的是静态文件，不支持服务端路由，已改用 Hash 模式 (`/#/login`、`/#/`)，刷新不会 404。
 
 ### 3. 配置南向设备
 
