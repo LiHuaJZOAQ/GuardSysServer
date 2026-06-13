@@ -8,6 +8,8 @@
 | 宿主 | `your-server.railway.app` (部署后获取) |
 | 端口 | 3001 |
 
+测试部署：`guardsysserver.up.railway.app`
+
 ## 通信协议
 
 ### 上报数据 (设备 -> 服务器)
