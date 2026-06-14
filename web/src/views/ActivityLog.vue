@@ -39,7 +39,7 @@
               <td><small>{{ log.device_id }}</small></td>
               <td>{{ log.temp ?? '--' }}°C</td>
               <td>{{ log.humi ?? '--' }}%</td>
-              <td :class="getLevelClass(log.smoke, 100, 200)">{{ log.smoke ?? '--' }}</td>
+              <td :class="getLevelClass(log.smoke, 100, 200)">{{ log.smoke ?? '--' }}ppm</td>
               <td>{{ log.ir ? '有人' : '无人' }}</td>
               <td><span :class="getStatusBadge(log.alarm)">{{ getAlarmText(log.alarm) }}</span></td>
               <td>{{ log.alarm_reason || '--' }}</td>
