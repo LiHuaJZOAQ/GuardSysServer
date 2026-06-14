@@ -64,6 +64,9 @@ db.exec(`
   );
 `);
 
+try { db.exec(`ALTER TABLE sensor_logs ADD COLUMN rssi REAL DEFAULT NULL`); } catch (e) {}
+try { db.exec(`ALTER TABLE sensor_logs ADD COLUMN alarm_reason TEXT DEFAULT NULL`); } catch (e) {}
+
 const defaultUser = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!defaultUser) {
   const hashedPassword = bcrypt.hashSync('admin123', 10);
@@ -175,14 +178,23 @@ const TCP_SERVER = net.createServer((socket) => {
   });
 });
 
+function computeAlarmReason(data) {
+  const reasons = [];
+  if (parseFloat(data.smoke) >= 200) reasons.push('烟雾超标');
+  if (parseFloat(data.temp) >= 40) reasons.push('温度过高');
+  if (parseInt(data.alarm) === 2 && reasons.length === 0) reasons.push('手动报警');
+  return reasons.join(' + ') || null;
+}
+
 function handleDeviceData(deviceId, data, socket) {
   if (data.type === 'report') {
-    const { temp, humi, smoke, ir, alarm } = data;
+    const { temp, humi, smoke, ir, alarm, rssi } = data;
+    const alarmReason = computeAlarmReason(data);
 
     db.prepare(`
-      INSERT INTO sensor_logs (device_id, temp, humi, smoke, ir, alarm)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(deviceId, temp, humi, smoke, ir ? 1 : 0, alarm);
+      INSERT INTO sensor_logs (device_id, temp, humi, smoke, ir, alarm, rssi, alarm_reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(deviceId, temp, humi, smoke, ir ? 1 : 0, alarm, rssi || null, alarmReason);
 
     db.prepare('UPDATE devices SET last_seen = ? WHERE id = ?')
       .run(new Date().toISOString(), deviceId);
@@ -194,6 +206,8 @@ function handleDeviceData(deviceId, data, socket) {
       smoke: parseFloat(smoke),
       ir: Boolean(ir),
       alarm: parseInt(alarm),
+      rssi: rssi || null,
+      alarmReason,
       timestamp: new Date().toISOString()
     };
 
@@ -286,15 +300,39 @@ app.post('/api/devices/:id/control', authenticateToken, (req, res) => {
   res.json({ success: true });
 });
 
+app.get('/api/logs', authenticateToken, (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const deviceId = req.query.deviceId || null;
+  let sql = `SELECT * FROM sensor_logs`;
+  const params = [];
+  if (deviceId) {
+    sql += ` WHERE device_id = ?`;
+    params.push(deviceId);
+  }
+  sql += ` ORDER BY created_at DESC LIMIT ?`;
+  params.push(limit);
+  res.json(db.prepare(sql).all(...params));
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../web/dist/index.html'));
 });
 
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('未登录'));
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return next(new Error('Token无效'));
+    socket.user = user;
+    next();
+  });
+});
+
 io.on('connection', (socket) => {
-  console.log('Web client connected');
+  console.log(`Web client connected: ${socket.user.username}`);
 
   socket.on('disconnect', () => {
-    console.log('Web client disconnected');
+    console.log(`Web client disconnected: ${socket.user.username}`);
   });
 });
 
