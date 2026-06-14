@@ -40,9 +40,8 @@ No lint, typecheck, or formatter scripts exist. No CI.
 ## Deployment
 
 - **Backend** → Railway (see `server/railway.json`, heroku-buildpacks/node)
-- **Frontend** → Vercel (see `web/vercel.json`, root dir = `web/`) or **GitHub Pages** (via `.github/workflows/deploy-pages.yml`)
+- **Frontend** → Vercel (see `web/vercel.json`, root dir = `web/`) or served directly by Railway alongside the backend
 - Frontend uses relative URLs (`/api/...`, `io()`) — works when served from same origin; Vite proxy (`vite.config.js`) forwards `/api` and `/socket.io` to `localhost:3000` in dev
-- GitHub Pages uses Hash history mode (`createWebHashHistory`), not `createWebHistory` — set in `web/src/main.js`
 - In production, server also serves `web/dist/` as static fallback at `/*`
 - Railway auto-builds the frontend: `server/package.json` has `postinstall: "cd ../web && npm install && npm run build"`
 
@@ -68,3 +67,5 @@ node test.js       # starts fresh, needs server already running
 ```
 
 Sequential integration test covering: login, auth guard, TCP device connection, data report, device list, latest data, history, control command, alarm trigger, offline handling.
+
+CI runs automatically via `.github/workflows/test.yml` on push to `server/`.
