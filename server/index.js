@@ -41,7 +41,8 @@ db.exec(`
     name TEXT,
     connected_at DATETIME,
     last_seen DATETIME,
-    online INTEGER DEFAULT 0
+    online INTEGER DEFAULT 0,
+    armed INTEGER DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS sensor_logs (
@@ -66,6 +67,7 @@ db.exec(`
 
 try { db.exec(`ALTER TABLE sensor_logs ADD COLUMN rssi REAL DEFAULT NULL`); } catch (e) {}
 try { db.exec(`ALTER TABLE sensor_logs ADD COLUMN alarm_reason TEXT DEFAULT NULL`); } catch (e) {}
+try { db.exec(`ALTER TABLE devices ADD COLUMN armed INTEGER DEFAULT 0`); } catch (e) {}
 
 const defaultUser = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!defaultUser) {
@@ -180,13 +182,41 @@ const TCP_SERVER = net.createServer((socket) => {
 
 function computeAlarmReason(data) {
   const reasons = [];
-  if (parseFloat(data.smoke) >= 200) reasons.push('烟雾超标');
-  if (parseFloat(data.temp) >= 40) reasons.push('温度过高');
-  if (parseInt(data.alarm) === 2 && reasons.length === 0) reasons.push('手动报警');
-  return reasons.join(' + ') || null;
+  const smoke = parseFloat(data.smoke);
+  const temp = parseFloat(data.temp);
+  const humi = parseFloat(data.humi);
+  const alarm = parseInt(data.alarm);
+  const ir = Boolean(data.ir);
+
+  if (alarm === 2) {
+    if (smoke >= 200) reasons.push('烟雾过高');
+    if (ir && (smoke >= 100 || temp >= 40)) reasons.push('人员未撤离');
+    if (humi >= 80) reasons.push('湿度过高');
+    if (humi <= 20) reasons.push('湿度过低');
+    if (reasons.length === 0) reasons.push('入侵报警');
+  } else if (alarm === 1) {
+    if (smoke >= 100) reasons.push('烟雾偏高');
+    if (temp >= 40) reasons.push('温度过高');
+    if (humi >= 80) reasons.push('湿度过高');
+    if (humi <= 20) reasons.push('湿度过低');
+  } else if (alarm === 0) {
+    if (smoke >= 50 || temp >= 35) reasons.push('数值偏高');
+    if (humi >= 70 || humi <= 30) reasons.push('湿度异常');
+    if (ir) reasons.push('有人活动');
+  }
+  return reasons.length > 0 ? reasons.join(' + ') : null;
 }
 
 function handleDeviceData(deviceId, data, socket) {
+  if (data.type === 'arm') {
+    const armed = data.value ? 1 : 0;
+    db.prepare('UPDATE devices SET armed = ? WHERE id = ?').run(armed, deviceId);
+    io.emit('device:arm', { deviceId, armed: Boolean(armed) });
+    console.log(`Device ${deviceId} ${armed ? 'armed' : 'disarmed'}`);
+    socket.write(JSON.stringify({ success: true }) + '\n');
+    return;
+  }
+
   if (data.type === 'report') {
     const { temp, humi, smoke, ir, alarm, rssi } = data;
     const alarmReason = computeAlarmReason(data);
@@ -221,6 +251,14 @@ function handleDeviceData(deviceId, data, socket) {
 function checkAlarmConditions(deviceId, data) {
   const smokeThreshold = 200;
   const tempThreshold = 40;
+  const humiHigh = 80;
+  const humiLow = 20;
+
+  const shouldPush = data.smoke >= smokeThreshold ||
+    data.temp >= tempThreshold ||
+    data.humi >= humiHigh ||
+    data.humi <= humiLow ||
+    data.alarm >= 2;
 
   const pushedToday = db.prepare(`
     SELECT COUNT(*) as count FROM push_logs
@@ -228,7 +266,7 @@ function checkAlarmConditions(deviceId, data) {
     AND DATE(pushed_at) = DATE('now')
   `).get(deviceId);
 
-  if ((data.smoke >= smokeThreshold || data.temp >= tempThreshold) && pushedToday.count === 0) {
+  if (shouldPush && pushedToday.count === 0) {
     sendServerChanAlarm(data);
     db.prepare('INSERT INTO push_logs (device_id, push_type) VALUES (?, ?)')
       .run(deviceId, 'alarm');
@@ -297,6 +335,13 @@ app.post('/api/devices/:id/control', authenticateToken, (req, res) => {
   socket.write(cmd);
 
   io.emit('device:command', { deviceId, action, value });
+
+  if (action === 'arm') {
+    const armed = value ? 1 : 0;
+    db.prepare('UPDATE devices SET armed = ? WHERE id = ?').run(armed, deviceId);
+    io.emit('device:arm', { deviceId, armed: Boolean(armed) });
+  }
+
   res.json({ success: true });
 });
 
