@@ -263,7 +263,7 @@ function checkAlarmConditions(deviceId, data) {
   const pushedToday = db.prepare(`
     SELECT COUNT(*) as count FROM push_logs
     WHERE device_id = ? AND push_type = 'alarm'
-    AND DATE(pushed_at) = DATE('now')
+    AND DATE(pushed_at) = DATE('now', 'localtime')
   `).get(deviceId);
 
   if (shouldPush && pushedToday.count === 0) {
@@ -391,9 +391,9 @@ schedule.scheduleJob('0 * * * *', () => {
   offlineDevices.forEach(d => {
     io.emit('device:online', { deviceId: d.id, online: false });
   });
-});
 
-db.prepare("DELETE FROM sensor_logs WHERE created_at < datetime('now', '-7 days')").run();
+  db.prepare("DELETE FROM sensor_logs WHERE created_at < datetime('now', '-7 days')").run();
+});
 
 TCP_SERVER.listen(TCP_PORT, () => {
   console.log(`TCP Server listening on port ${TCP_PORT}`);

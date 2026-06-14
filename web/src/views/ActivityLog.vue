@@ -55,8 +55,14 @@
 </template>
 
 <script>
+import { useRouter } from 'vue-router'
+
 export default {
   name: 'ActivityLog',
+  setup() {
+    const router = useRouter()
+    return { router }
+  },
   data() {
     return {
       logs: [],
@@ -69,6 +75,12 @@ export default {
     this.fetchLogs()
   },
   methods: {
+    logout() {
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      this.router.push('/login')
+    },
+
     getAuthHeader() {
       const token = localStorage.getItem('token')
       return { 'Authorization': `Bearer ${token}` }
@@ -77,6 +89,7 @@ export default {
     async fetchDevices() {
       try {
         const res = await fetch('/api/devices', { headers: this.getAuthHeader() })
+        if (res.status === 401 || res.status === 403) { this.logout(); return }
         if (res.ok) this.devices = await res.json()
       } catch (e) {
         console.error(e)
@@ -88,6 +101,7 @@ export default {
         let url = '/api/logs?limit=100'
         if (this.filterDevice) url += `&deviceId=${this.filterDevice}`
         const res = await fetch(url, { headers: this.getAuthHeader() })
+        if (res.status === 401 || res.status === 403) { this.logout(); return }
         if (res.ok) this.logs = await res.json()
       } catch (e) {
         console.error(e)

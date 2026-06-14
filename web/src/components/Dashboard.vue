@@ -312,6 +312,14 @@ export default {
           this.fetchDevices()
         }
       })
+
+      this.socket.on('device:arm', ({ deviceId, armed }) => {
+        const device = this.devices.find(d => d.id === deviceId)
+        if (device) device.armed = armed ? 1 : 0
+        if (this.selectedDevice === deviceId) {
+          this.currentAlarm = armed ? 1 : 0
+        }
+      })
     },
 
     async fetchDevices() {
@@ -447,7 +455,7 @@ export default {
 
     updateChart() {
       if (!this.chart) return
-      this.chart.data.labels = this.historyData.map(d => new Date(d.created_at).toLocaleTimeString())
+      this.chart.data.labels = this.historyData.map(d => new Date(d.created_at || d.timestamp).toLocaleTimeString())
       this.chart.data.datasets[0].data = this.historyData.map(d => d.temp)
       this.chart.data.datasets[1].data = this.historyData.map(d => d.humi)
       this.chart.data.datasets[2].data = this.historyData.map(d => d.smoke)
