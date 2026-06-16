@@ -16,10 +16,10 @@
       <div class="d-flex align-items-center gap-2">
         <label class="form-label mb-0 text-muted" style="font-size:0.85rem">刷新频率</label>
         <select v-model.number="refreshRate" class="form-select form-select-sm" style="width:auto" @change="changeRefreshRate">
-          <option :value="2">2s</option>
-          <option :value="5">5s</option>
-          <option :value="10">10s</option>
-          <option :value="30">30s</option>
+          <option :value="2000">2000ms</option>
+          <option :value="5000">5000ms</option>
+          <option :value="10000">10000ms</option>
+          <option :value="30000">30000ms</option>
         </select>
       </div>
     </div>
@@ -196,7 +196,7 @@ export default {
       historyData: [],
       username: localStorage.getItem('username') || '',
       refreshTimer: null,
-      refreshRate: 5
+      refreshRate: 5000
     }
   },
   setup() {
@@ -259,7 +259,7 @@ export default {
         if (this.selectedDevice) {
           this.fetchLatest()
         }
-      }, this.refreshRate * 1000)
+      }, this.refreshRate)
     },
 
     clearRefreshTimer() {
