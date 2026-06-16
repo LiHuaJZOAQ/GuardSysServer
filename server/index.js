@@ -410,21 +410,25 @@ wss.on('connection', (ws, req) => {
     this.send(str);
   };
 
-  const deviceId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
-  console.log(`[WS] Device connected: ${deviceId}`);
+  const tempId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
+  let deviceId = tempId;
+  let registered = false;
 
-  deviceConnections.set(deviceId, ws);
-
-  const existingDevice = db.prepare('SELECT id FROM devices WHERE id = ?').get(deviceId);
-  if (existingDevice) {
-    db.prepare('UPDATE devices SET connected_at = ?, last_seen = ?, online = 1 WHERE id = ?')
-      .run(new Date().toISOString(), new Date().toISOString(), deviceId);
-  } else {
-    db.prepare('INSERT INTO devices (id, name, connected_at, last_seen, online) VALUES (?, ?, ?, ?, 1)')
-      .run(deviceId, `Device-${deviceId}`, new Date().toISOString(), new Date().toISOString());
-  }
-
-  io.emit('device:online', { deviceId, online: true });
+  const registerDevice = (id) => {
+    deviceId = id;
+    registered = true;
+    deviceConnections.set(deviceId, ws);
+    const existingDevice = db.prepare('SELECT id FROM devices WHERE id = ?').get(deviceId);
+    if (existingDevice) {
+      db.prepare('UPDATE devices SET connected_at = ?, last_seen = ?, online = 1 WHERE id = ?')
+        .run(new Date().toISOString(), new Date().toISOString(), deviceId);
+    } else {
+      db.prepare('INSERT INTO devices (id, name, connected_at, last_seen, online) VALUES (?, ?, ?, ?, 1)')
+        .run(deviceId, `Device-${deviceId}`, new Date().toISOString(), new Date().toISOString());
+    }
+    io.emit('device:online', { deviceId, online: true });
+    console.log(`[WS] Device registered: ${deviceId}`);
+  };
 
   ws.on('message', (data) => {
     try {
@@ -433,6 +437,19 @@ wss.on('connection', (ws, req) => {
       lines.forEach(line => {
         if (!line.trim()) return;
         const parsed = JSON.parse(line);
+
+        // Handle register message — use MAC as permanent device ID
+        if (parsed.type === 'register' && parsed.mac) {
+          if (registered) return;
+          registerDevice(parsed.mac);
+          return;
+        }
+
+        // Unregistered device: create entry on first data message (fallback)
+        if (!registered) {
+          registerDevice(tempId);
+        }
+
         handleDeviceData(deviceId, parsed, ws);
       });
     } catch (e) {
