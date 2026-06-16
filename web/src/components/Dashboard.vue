@@ -49,7 +49,7 @@
         <div class="card text-center p-3">
           <div class="text-muted">烟雾</div>
           <div class="sensor-value" :class="getLevelClass(latestData.smoke, 100, 200)">
-            {{ latestData.smoke ?? '--' }}<span class="sensor-unit">ppm</span>
+            {{ latestData.smoke !== undefined && latestData.smoke !== null ? parseFloat(latestData.smoke).toFixed(2) : '--' }}<span class="sensor-unit">ppm</span>
           </div>
         </div>
       </div>

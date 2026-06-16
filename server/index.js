@@ -220,13 +220,12 @@ function handleDeviceData(deviceId, data, socket) {
 
   if (data.type === 'report') {
     const { temp, humi, smoke, ir, alarm, rssi } = data;
-    const smokeRounded: number = parseFloat(parseFloat(smoke).toFixed(2));
     const alarmReason = computeAlarmReason(data);
 
     db.prepare(`
       INSERT INTO sensor_logs (device_id, temp, humi, smoke, ir, alarm, rssi, alarm_reason)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(deviceId, temp, humi, smokeRounded, ir ? 1 : 0, alarm, rssi || null, alarmReason);
+    `).run(deviceId, temp, humi, smoke, ir ? 1 : 0, alarm, rssi || null, alarmReason);
 
     db.prepare('UPDATE devices SET last_seen = ? WHERE id = ?')
       .run(new Date().toISOString(), deviceId);
@@ -310,9 +309,6 @@ app.get('/api/devices/:id/latest', authenticateToken, (req, res) => {
     WHERE device_id = ?
     ORDER BY created_at DESC LIMIT 1
   `).get(req.params.id);
-  if (latest && latest.smoke !== null) {
-    latest.smoke = parseFloat(latest.smoke.toFixed(2));
-  }
   res.json(latest || {});
 });
 
