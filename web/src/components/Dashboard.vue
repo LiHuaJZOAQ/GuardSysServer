@@ -191,6 +191,7 @@ export default {
       historyData: [],
       username: localStorage.getItem('username') || '',
       refreshTimer: null,
+      devicesTimer: null,
       refreshRate: 5000
     }
   },
@@ -227,9 +228,11 @@ export default {
     this.fetchDevices()
     this.initChart()
     this.startRefreshTimer()
+    this.startDevicesTimer()
   },
   beforeUnmount() {
     this.clearRefreshTimer()
+    this.clearDevicesTimer()
     if (this.socket) this.socket.disconnect()
     if (this.chart) this.chart.destroy()
   },
@@ -261,6 +264,19 @@ export default {
       if (this.refreshTimer) {
         clearInterval(this.refreshTimer)
         this.refreshTimer = null
+      }
+    },
+
+    startDevicesTimer() {
+      this.devicesTimer = setInterval(() => {
+        this.fetchDevices()
+      }, 10000)
+    },
+
+    clearDevicesTimer() {
+      if (this.devicesTimer) {
+        clearInterval(this.devicesTimer)
+        this.devicesTimer = null
       }
     },
 
