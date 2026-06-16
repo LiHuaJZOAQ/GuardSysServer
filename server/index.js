@@ -445,6 +445,16 @@ wss.on('connection', (ws, req) => {
           return;
         }
 
+        // Handle ping — keep connection alive, update last_seen
+        if (parsed.type === 'ping') {
+          if (registered) {
+            db.prepare('UPDATE devices SET last_seen = ? WHERE id = ?')
+              .run(new Date().toISOString(), deviceId);
+          }
+          ws.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+
         // Unregistered device: create entry on first data message (fallback)
         if (!registered) {
           registerDevice(tempId);
