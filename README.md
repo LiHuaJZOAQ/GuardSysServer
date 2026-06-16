@@ -245,7 +245,7 @@ SQLite 数据库 `guardsys.db`，包含以下表：
 #### `POST /api/devices/:id/control`
 
 向设备发送控制指令。设备在线时通过 TCP 转发，同时通过 Socket.io 广播 `device:command` 事件。
-
+ 
 ```json
 // Request
 {"action":"setAlarm","value":1}
