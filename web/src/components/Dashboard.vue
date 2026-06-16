@@ -14,13 +14,8 @@
         {{ connectionStatus === 'connected' ? '● 已连接' : '● 未连接' }}
       </span>
       <div class="d-flex align-items-center gap-2">
-        <label class="form-label mb-0 text-muted" style="font-size:0.85rem">刷新频率</label>
-        <select v-model.number="refreshRate" class="form-select form-select-sm" style="width:auto" @change="changeRefreshRate">
-          <option :value="2000">2000ms</option>
-          <option :value="5000">5000ms</option>
-          <option :value="10000">10000ms</option>
-          <option :value="30000">30000ms</option>
-        </select>
+        <label class="form-label mb-0 text-muted" style="font-size:0.85rem">刷新频率(ms)</label>
+        <input type="number" v-model.number="refreshRate" class="form-control form-control-sm" style="width:100px" min="100" @change="changeRefreshRate">
       </div>
     </div>
 
@@ -295,6 +290,7 @@ export default {
       })
 
       this.socket.on('sensor:data', (data) => {
+        this.connectionStatus = 'connected'
         if (!this.selectedDevice || data.deviceId === this.selectedDevice) {
           this.latestData = data
           this.currentAlarm = data.alarm ?? 0
@@ -327,6 +323,7 @@ export default {
         const res = await fetch('/api/devices', { headers: this.getAuthHeader() })
         if (res.status === 401 || res.status === 403) { this.logout(); return }
         this.devices = await res.json()
+        if (this.devices.length > 0) this.connectionStatus = 'connected'
         if (!this.selectedDevice && this.devices.length > 0) {
           this.selectedDevice = this.devices[0].id
         }
