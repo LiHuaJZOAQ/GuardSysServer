@@ -335,9 +335,10 @@ export default {
     async fetchLatest() {
       if (!this.selectedDevice) return
       try {
-        const res = await fetch(`/api/devices/${this.selectedDevice}/latest`, { headers: this.getAuthHeader() })
+        const res = await fetch(`/api/devices/${this.selectedDevice}/latest?_t=${Date.now()}`, { headers: this.getAuthHeader() })
         const latest = await res.json()
         if (latest && latest.id) {
+          this.connectionStatus = 'connected'
           this.latestData = {
             temp: latest.temp,
             humi: latest.humi,
