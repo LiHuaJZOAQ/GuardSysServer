@@ -8,6 +8,7 @@ const net = require('net');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const { WebSocketServer } = require('ws');
 
 const app = express();
 const server = http.createServer(app);
@@ -398,6 +399,62 @@ schedule.scheduleJob('0 * * * *', () => {
 TCP_SERVER.listen(TCP_PORT, () => {
   console.log(`TCP Server listening on port ${TCP_PORT}`);
 });
+
+// ---- WebSocket device server (shares HTTP server, path=/device) ----
+const wss = new WebSocketServer({ server, path: '/device' });
+
+wss.on('connection', (ws, req) => {
+  // Add write() for compatibility with handleDeviceData
+  ws.write = function (data) {
+    const str = typeof data === 'string' && data.endsWith('\n') ? data.slice(0, -1) : data;
+    this.send(str);
+  };
+
+  const deviceId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
+  console.log(`[WS] Device connected: ${deviceId}`);
+
+  deviceConnections.set(deviceId, ws);
+
+  const existingDevice = db.prepare('SELECT id FROM devices WHERE id = ?').get(deviceId);
+  if (existingDevice) {
+    db.prepare('UPDATE devices SET connected_at = ?, last_seen = ?, online = 1 WHERE id = ?')
+      .run(new Date().toISOString(), new Date().toISOString(), deviceId);
+  } else {
+    db.prepare('INSERT INTO devices (id, name, connected_at, last_seen, online) VALUES (?, ?, ?, ?, 1)')
+      .run(deviceId, `Device-${deviceId}`, new Date().toISOString(), new Date().toISOString());
+  }
+
+  io.emit('device:online', { deviceId, online: true });
+
+  ws.on('message', (data) => {
+    try {
+      const jsonStr = data.toString().trim();
+      const lines = jsonStr.split('\n');
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        const parsed = JSON.parse(line);
+        handleDeviceData(deviceId, parsed, ws);
+      });
+    } catch (e) {
+      console.error('[WS] Parse error:', e.message);
+      ws.write(JSON.stringify({ error: 'Invalid JSON' }) + '\n');
+    }
+  });
+
+  ws.on('close', () => {
+    console.log(`[WS] Device disconnected: ${deviceId}`);
+    deviceConnections.delete(deviceId);
+    db.prepare('UPDATE devices SET online = 0, last_seen = ? WHERE id = ?')
+      .run(new Date().toISOString(), deviceId);
+    io.emit('device:online', { deviceId, online: false });
+  });
+
+  ws.on('error', (err) => {
+    console.error(`[WS] Socket error for ${deviceId}:`, err.message);
+  });
+});
+
+console.log(`WebSocket device server ready on path /device`);
 
 server.listen(PORT, () => {
   console.log(`HTTP Server listening on port ${PORT}`);
