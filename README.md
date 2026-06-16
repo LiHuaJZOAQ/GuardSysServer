@@ -1,12 +1,12 @@
 # GuardSys 服务端
 
-OpenHarmony 北向监控系统的云端服务端，负责接收设备传感器数据、存储历史记录、推送报警通知、为 Web 前端提供实时数据与远程控制 API。
+OpenHarmony 北向监控系统的云端服务端，负责接收设备传感器数据（支持 **WebSocket** 和 **TCP** 双协议）、存储历史记录、推送报警通知、为 Web 前端提供实时数据与远程控制 API。
 
 ## 项目结构
 
 ```
 GuardSysServer/
-├── server/                        # 后端 (Express + Socket.io + SQLite)
+├── server/                        # 后端 (Express + Socket.io + SQLite + ws)
 │   ├── index.js                   # 服务端入口（单文件）
 │   ├── test.js                    # 集成测试
 │   ├── railway.json               # Railway 部署配置
@@ -35,14 +35,32 @@ GuardSysServer/
 
 ---
 
-## TCP 通信协议
+## 通信协议
 
-设备通过 **TCP 端口 3001** 连接服务器，JSON 以 `\n` 换行符分隔，支持单次连接发送多条数据。
+设备通过 **WebSocket**（推荐）或 **TCP** 连接服务器，JSON 消息以 WebSocket 帧（或 TCP `\n` 换行符）传输。
 
-### 设备上报
+### 连接方式
+
+| 协议 | 路径/端口 | 说明 |
+|------|-----------|------|
+| **WebSocket** | `wss://host/device`（443）或 `ws://host:port/device` | **推荐**，共享 HTTP 端口，无需额外暴露端口 |
+| TCP | 端口 3001 | 兼容旧设备，功能相同 |
+
+### 设备注册
+
+设备连接后应先发送 register 消息，将 MAC/序列号注册为永久设备 ID：
 
 ```json
-{"type":"report","temp":"25.3","humi":"60.1","smoke":12.34,"ir":true,"alarm":0}
+{"type":"register","mac":"1234567890"}
+```
+
+- 注册后该 MAC 作为 `device_id` 持久化到数据库
+- 若未发送 register，则回退使用 `IP:端口` 作为临时 ID
+
+### 数据上报
+
+```json
+{"type":"report","temp":"25.3","humi":"60.1","smoke":12.34,"ir":true,"alarm":0,"rssi":-34}
 ```
 
 | 字段 | 类型 | 说明 |
@@ -58,8 +76,6 @@ GuardSysServer/
 服务器应答：`{"success":true}`
 
 ### 红外布防/撤防
-
-设备可在运行时切换布防状态并同步到服务器：
 
 ```json
 {"type":"arm","value":1}
@@ -92,7 +108,7 @@ GuardSysServer/
 {"type":"ping"}
 ```
 
-服务器不回复心跳，断线 5 分钟后自动标记设备离线。
+服务器回复 `{"type":"pong"}` 并更新 `last_seen`。设备超过 5 分钟未上报数据则自动标记离线。
 
 ---
 
@@ -203,8 +219,8 @@ SQLite 数据库 `guardsys.db`，包含以下表：
 // Response 200
 [
   {
-    "id": "::ffff:123.45.67.89:54321",
-    "name": "Device-::ffff:123.45.67.89:54321",
+    "id": "1234567890",
+    "name": "Device-1234567890",
     "connected_at": "2026-06-14T08:00:00.000Z",
     "last_seen": "2026-06-14T08:05:00.000Z",
     "online": 1,
@@ -212,6 +228,8 @@ SQLite 数据库 `guardsys.db`，包含以下表：
   }
 ]
 ```
+
+> `id` 为设备注册时发送的 MAC/序列号（示例 `1234567890`），非 IP:端口。未注册设备仍使用 IP:端口。
 
 #### `GET /api/devices/:id/latest`
 
@@ -221,7 +239,7 @@ SQLite 数据库 `guardsys.db`，包含以下表：
 // Response 200
 {
   "id": 128,
-  "device_id": "::ffff:123.45.67.89:54321",
+  "device_id": "1234567890",
   "temp": 25.3,
   "humi": 60.1,
   "smoke": 45,
@@ -244,7 +262,7 @@ SQLite 数据库 `guardsys.db`，包含以下表：
 
 #### `POST /api/devices/:id/control`
 
-向设备发送控制指令。设备在线时通过 TCP 转发，同时通过 Socket.io 广播 `device:command` 事件。
+向设备发送控制指令。设备在线时通过 WebSocket/TCP 转发，同时通过 Socket.io 广播 `device:command` 事件。
  
 ```json
 // Request
@@ -298,22 +316,24 @@ const socket = io({ auth: { token: 'eyJhbGciOiJ...' } })
 ### 系统架构
 
 ```
-南向设备(开发板)  -->  TCP:3001  -->  Railway服务器
-                                          |
-                                          v
-                                    Socket.io
-                                          |
-                                          v
-                                     Vue3 前端  -->  Vercel
+南向设备(开发板)  -->  WebSocket /device  -->  Railway服务器 (端口 3000)
+                                                   |
+                                                   v
+                                             Socket.io
+                                                   |
+                                                   v
+                                            Web 前端 (Vue 3)
 ```
+
+> Railway 统一暴露端口 3000（`$PORT`），WebSocket 设备服务器和 HTTP 前端共享同一端口。不再需要额外暴露 TCP 3001 端口。
 
 ### 部署步骤
 
-#### 1. 部署后端 (Railway)
+#### 1. 部署服务端 (Railway)
 
 1. 注册 Railway 账号: https://railway.app （使用 GitHub 登录）
 2. 创建新项目: "New Project" -> "Deploy from GitHub repo"
-3. 选择你的 GitHub 仓库（或先推送 server 目录）
+3. 选择 GuardSysServer 仓库
 4. 在 Railway 控制台添加环境变量:
    - `SCKEY`: Server酱的 SCKEY（可选，用于报警推送）
    - `PORT`: 3000
@@ -334,13 +354,15 @@ const socket = io({ auth: { token: 'eyJhbGciOiJ...' } })
 
 #### 3. 配置南向设备
 
-修改 GuardSysAPP 中的服务器地址为 Railway 分配的域名:
+修改 GuardSysAPP 中的服务器地址为 Railway 域名：
 
-在 `entry/src/main/ets/pages/TCPClient.ets` 中找到:
+在 `SettingsPage.ets` 中：
 ```typescript
-const SERVER_HOST = 'your-server.com';  // 修改为 Railway 域名
-const SERVER_PORT = 3001;
+@State serverHost: string = 'guardsysserver.up.railway.app';  // Railway 域名
+@State serverPort: string = '443';  // 443=wss://, 其他=ws://
 ```
+
+设备通过 **WebSocket** 连接 `wss://域名/device`，**不再使用 TCP 3001 端口**。
 
 #### 4. 配置 Server酱 报警推送
 
@@ -366,13 +388,14 @@ npm run dev
 
 ### 功能说明
 
-1. **实时监控**: 页面自动显示温湿度、烟雾、红外状态
-2. **设备控制**: 选择设备后可设置报警模式
+1. **实时监控**: 页面自动显示温湿度、烟雾、红外状态，支持 ms 级轮询间隔设置
+2. **设备控制**: 选择设备后可设置报警模式、远程布防/撤防
 3. **报警推送**: 当烟雾>=200 或 温度>=40 时自动推送微信通知
-4. **历史数据**: 显示24小时历史曲线
+4. **历史数据**: 显示 24 小时历史曲线
 
 ### 故障排查
 
-1. 设备无法连接: 检查服务器域名是否正确，TCP端口是否开放
-2. 前端无法连接: 确认后端已正确启动，前端使用相对路径 (`/api/...`) 无需额外配置；如前后端分离部署请配置 Vite 代理
-3. 推送失败: 检查 SCKEY 是否正确配置
+1. 设备无法连接: 确认服务器域名正确，Railway 运行正常
+2. 前端无法连接: 确认已登录且 token 未过期
+3. 数据不更新: 检查设备端是否开机运行，WiFi 是否连接成功；Web 端已自动每 10s 刷新设备列表，每 `刷新频率(ms)` 轮询最新数据
+4. 推送失败: 检查 SCKEY 是否正确配置
