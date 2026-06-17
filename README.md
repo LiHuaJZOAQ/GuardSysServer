@@ -2,6 +2,17 @@
 
 OpenHarmony 北向监控系统的云端服务端，负责接收设备传感器数据（支持 **WebSocket** 和 **TCP** 双协议）、存储历史记录、推送报警通知、为 Web 前端提供实时数据与远程控制 API。
 
+> [!TIP]
+> 
+> 本项目是智能家居安防系统 (https://github.com/LiHuaJZOAQ/GuardSystem) 的一个组成部分
+>
+> 下面是安防系统的其他组成项目
+> 
+> - 设备端Openharmony南向项目(https://github.com/LiHuaJZOAQ/GuardSys)
+>
+> - 设备端Openharmony北向项目(https://github.com/LiHuaJZOAQ/GuardSysAPP)
+
+
 ## 项目结构
 
 ```
