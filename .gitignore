@@ -155,6 +155,7 @@
 **/web/.dart_tool/
 **/web/build/
 **/AGENTS.md
+**/spec
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 
