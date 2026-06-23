@@ -154,6 +154,7 @@
 **/android/**/flutter_*.json
 **/web/.dart_tool/
 **/web/build/
+**/AGENTS.md
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 
