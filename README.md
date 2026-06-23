@@ -40,7 +40,6 @@ GuardSysServer/
 │   └── spec/                      # 设计文档
 ├── .github/workflows/
 │   └── test.yml                   # CI: 服务端集成测试
-├── AGENTS.md                      # AI 辅助说明
 └── README.md
 ```
 
